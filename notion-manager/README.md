@@ -24,6 +24,21 @@ notion-manager/
     └── NOTION_AGENT_HANDOVER.md
 ```
 
+## 개발 환경 (uv)
+
+파이썬 버전·의존성·가상환경은 전부 [uv](https://docs.astral.sh/uv/)로 관리한다
+(Python 3.12 고정 — `.python-version`, 잠금 — `uv.lock`).
+
+```bash
+cd notion-manager
+uv sync              # .venv 생성 + uv.lock 기준 의존성 설치
+uv run pytest        # 테스트
+uv run ruff check .  # 린트
+# 봇 실행 (MVP 구현 후): uv run python -m bot
+```
+
+의존성 추가/변경도 uv로만: `uv add <pkg>`, `uv remove <pkg>`.
+
 ## 보안
 
 - 실제 토큰/API 키는 저장소 루트 `.env`에만 둔다 (`.gitignore` 대상).

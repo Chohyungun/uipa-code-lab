@@ -33,6 +33,12 @@
 4. 삭제/대량 변경: MVP에서는 **미지원 응답** 처리. (M2에서 ✅ 리액션 확인 흐름으로 구현.)
 5. 모든 노션 콘텐츠·디스코드 응답은 한국어, 비전공자도 이해할 쉬운 표현.
 6. 보고 형식: "✅ 한 일 요약 + 노션 링크". 실패 시 원인 요약 + 대안 제시.
+7. **도구 체인 (orch 지시, 이 저장소 한정)**: 파이썬 버전·의존성·가상환경은 **uv**로만
+   관리한다 — `notion-manager/pyproject.toml` + `uv.lock` + `.python-version`(3.12 고정),
+   실행·테스트는 `uv run` 기준 (`uv run pytest`, `uv run ruff check .`).
+   requirements.txt 만들지 말 것. 의존성 변경은 `uv add`/`uv remove`.
+8. **OpenAI 실 API 호출 금지 (현 시점)**: OpenAI 키 재발급 전이므로, 실 OpenAI 호출이
+   필요한 스모크/통합 테스트 전에 orch 보고가 선행되어야 한다. 단위 테스트는 전부 mock.
 
 ## 열린 설계 결정 + CTO 성향(lean)
 

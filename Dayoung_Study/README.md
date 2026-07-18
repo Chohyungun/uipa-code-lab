@@ -5,3 +5,4 @@
 
 - PROJECT LIST
   1. 클로드랑 친해지기 프로젝트1 - 농장 시뮬레이션 게임 만들기 [folder : farm-game]
+  2. 클로드랑 친해지기 프로젝트2 - 예산관리 엑셀 자동생성 스크립트 [folder : xlsx_test]

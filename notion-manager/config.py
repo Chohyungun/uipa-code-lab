@@ -119,19 +119,41 @@ class SecretMaskingFilter(logging.Filter):
 
     로거(Logger)에 부착하면 하위 named logger(discord.http 등)에서 전파되는
     레코드를 거르지 못한다 — 반드시 Handler에 부착한다 (SEC-C1).
+
+    메시지·인자뿐 아니라 예외 트레이스백(exc_info/exc_text)과 stack_info에
+    실린 시크릿도 마스킹한다. Formatter.format()은 필터 실행 '이후'에
+    formatException()/formatStack() 결과를 로그 라인에 덧붙이므로, 이 경로를
+    막지 않으면 logger.exception(...) / logger.error(..., exc_info=True) 로
+    시크릿이 콘솔·로그 파일에 그대로 노출된다 (SEC-C1 백스톱).
     """
 
     def __init__(self, secrets: Iterable[str]):
         super().__init__()
         self._secrets = [s for s in secrets if s]
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
+    def _mask(self, text: str) -> str:
         for secret in self._secrets:
-            if secret in message:
-                message = message.replace(secret, "***")
-        record.msg = message
+            if secret in text:
+                text = text.replace(secret, "***")
+        return text
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self._mask(record.getMessage())
         record.args = None
+
+        if record.exc_info:
+            # 마스킹된 텍스트를 exc_text에 캐시하고 exc_info는 비운다 — 이후
+            # Formatter.format()이 원본(비마스킹) exc_info로 재포맷하지 못하게
+            # 막는다. 동일 레코드가 여러 Handler를 거쳐도(각 Handler의 필터가
+            # 재호출돼도) 이미 마스킹된 exc_text만 남으므로 멱등하다.
+            record.exc_text = self._mask(logging.Formatter().formatException(record.exc_info))
+            record.exc_info = None
+        elif record.exc_text:
+            record.exc_text = self._mask(record.exc_text)
+
+        if record.stack_info:
+            record.stack_info = self._mask(record.stack_info)
+
         return True
 
 

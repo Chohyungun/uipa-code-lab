@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import sys
 
 import pytest
 
@@ -86,6 +87,32 @@ def test_masking_filter_masks_message_and_args():
     assert "***" in record.getMessage()
 
 
+def test_masking_filter_masks_exception_text():
+    """SEC-C1 백스톱: exc_info 트레이스백 텍스트에 실린 시크릿도 마스킹해야 한다."""
+    f = SecretMaskingFilter(["test-bot-token"])
+    try:
+        raise RuntimeError("token=test-bot-token")
+    except RuntimeError:
+        record = logging.LogRecord("discord.http", logging.ERROR, __file__, 1,
+                                   "request failed", None, sys.exc_info())
+    assert f.filter(record) is True
+    assert record.exc_info is None  # 포매터가 원본 exc_info로 재계산하지 못하도록 무력화
+    formatted = logging.Formatter().format(record)
+    assert "test-bot-token" not in formatted
+    assert "***" in formatted
+
+
+def test_masking_filter_masks_stack_info():
+    """SEC-C1 백스톱: stack_info에 실린 시크릿도 마스킹해야 한다."""
+    f = SecretMaskingFilter(["test-bot-token"])
+    record = logging.LogRecord("discord.http", logging.INFO, __file__, 1,
+                               "state snapshot", None, None)
+    record.stack_info = "Stack (most recent call last):\n  token=test-bot-token"
+    assert f.filter(record) is True
+    assert "test-bot-token" not in record.stack_info
+    assert "***" in record.stack_info
+
+
 @pytest.fixture
 def clean_root_logger():
     root = logging.getLogger()
@@ -108,6 +135,21 @@ def test_setup_logging_masks_named_logger(fake_settings, clean_root_logger):
                for h in root.handlers for f in h.filters)
     logging.getLogger("discord.http").warning("token=%s", "test-bot-token")
     for h in root.handlers:
+        h.flush()
+    log_file = fake_settings.log_dir / "notion_manager.log"
+    content = log_file.read_text(encoding="utf-8")
+    assert "test-bot-token" not in content
+    assert "***" in content
+
+
+def test_setup_logging_masks_exception_traceback(fake_settings, clean_root_logger):
+    """SEC-C1 백스톱: logger.exception()이 남기는 트레이스백의 시크릿이 로그 파일에 새지 않는다."""
+    setup_logging(fake_settings)
+    try:
+        raise RuntimeError("unauthorized: test-bot-token")
+    except RuntimeError:
+        logging.getLogger("discord.http").exception("request failed")
+    for h in logging.getLogger().handlers:
         h.flush()
     log_file = fake_settings.log_dir / "notion_manager.log"
     content = log_file.read_text(encoding="utf-8")
